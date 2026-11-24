@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#15803d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TaniCatat" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <title>TaniCatat - Pencatatan Pertanian Padi & Jagung</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            sawah: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d' },
+            jagung: { 50: '#fefce8', 100: '#fef9c3', 500: '#eab308', 600: '#ca8a04', 700: '#a16207' }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.2s ease-out; }
+  </style>
+</head>
+<body class="text-slate-800 pb-24 md:pb-10">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-30 bg-sawah-700 text-white shadow-md">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-xl shadow-inner">🌾</div>
+        <div>
+          <h1 class="font-extrabold text-base sm:text-lg leading-tight tracking-tight">TaniCatat</h1>
+          <p class="text-[11px] text-sawah-100 leading-tight">Padi &amp; Jagung</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="btnInstallPwa" onclick="installPwa()" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-xs shadow transition">
+          <span>📲</span><span>Instal</span>
+        </button>
+        <button id="btnSyncStatus" onclick="openGasModal()" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-300/40 text-amber-100 text-xs font-semibold hover:bg-white/15 transition">
+          <span id="statusDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span id="statusText" class="hidden sm:inline">Mode Lokal</span>
+        </button>
+        <button onclick="openSettingsModal()" title="Pengaturan & Ekspor" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition text-sm">⚙️</button>
+      </div>
+    </div>
+
+    <!-- DESKTOP NAV -->
+    <nav class="hidden md:block bg-sawah-800/80 border-t border-white/10">
+      <div class="max-w-5xl mx-auto px-4 flex gap-1">
+        <button onclick="switchTab('dashboard')" data-tab="dashboard" class="nav-btn px-4 py-2.5 text-sm font-semibold border-b-2 border-white text-white">📊 Ringkasan</button>
+        <button onclick="switchTab('lahan')" data-tab="lahan" class="nav-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-sawah-100 hover:text-white">🗺️ Lahan</button>
+        <button onclick="switchTab('pengeluaran')" data-tab="pengeluaran" class="nav-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-sawah-100 hover:text-white">💸 Pengeluaran</button>
+        <button onclick="switchTab('aktivitas')" data-tab="aktivitas" class="nav-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-sawah-100 hover:text-white">📝 Aktivitas</button>
+        <button onclick="switchTab('panen')" data-tab="panen" class="nav-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-sawah-100 hover:text-white">🌾 Panen</button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-5xl mx-auto px-4 pt-4 space-y-5">
+
+    <!-- BANNER MODE LOKAL -->
+    <div id="localBanner" class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-start gap-3">
+        <span class="text-xl mt-0.5">🗄️</span>
+        <div>
+          <p class="font-bold text-sm text-amber-900">Berjalan dalam Mode Lokal (Penyimpanan Browser).</p>
+          <p class="text-xs text-amber-800 mt-0.5">Hubungkan ke Google Sheets via Apps Script agar data tersimpan di cloud dan sinkron antara HP &amp; Laptop.</p>
+        </div>
+      </div>
+      <button onclick="openGasModal()" class="shrink-0 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition">
+        Hubungkan Google Sheets
+      </button>
+    </div>
+
+    <!-- TAB: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-section space-y-5 fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-extrabold text-slate-900">Ringkasan Usaha Tani</h2>
+          <p class="text-xs text-slate-500">Pantau modal, pendapatan, laba bersih, dan perkembangan HST tanaman.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="inline-flex bg-slate-200/80 p-1 rounded-xl text-xs font-semibold">
+            <button onclick="setFilterKomoditas('Semua')" id="flt-Semua" class="flt-kom px-3 py-1.5 rounded-lg bg-sawah-700 text-white shadow-sm">Semua</button>
+            <button onclick="setFilterKomoditas('Padi')" id="flt-Padi" class="flt-kom px-3 py-1.5 rounded-lg text-slate-600">🌾 Padi</button>
+            <button onclick="setFilterKomoditas('Jagung')" id="flt-Jagung" class="flt-kom px-3 py-1.5 rounded-lg text-slate-600">🌽 Jagung</button>
+          </div>
+          <select id="filterLahanSelect" onchange="renderDashboard()" class="text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-700">
+            <option value="ALL">Semua Lahan</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Modal</p>
+          <p id="kpiModal" class="text-lg sm:text-xl font-extrabold text-rose-600 mt-1">Rp 0</p>
+          <p id="kpiModalSub" class="text-[11px] text-slate-500 mt-1">0 transaksi</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pendapatan</p>
+          <p id="kpiPendapatan" class="text-lg sm:text-xl font-extrabold text-sawah-700 mt-1">Rp 0</p>
+          <p id="kpiPendapatanSub" class="text-[11px] text-slate-500 mt-1">0 kali panen</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Laba Bersih</p>
+          <p id="kpiLaba" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">Rp 0</p>
+          <p id="kpiRoi" class="text-[11px] text-slate-500 mt-1">ROI: 0%</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Panen</p>
+          <p id="kpiPanen" class="text-lg sm:text-xl font-extrabold text-amber-600 mt-1">0 Kg</p>
+          <p id="kpiProduktivitas" class="text-[11px] text-slate-500 mt-1">0 Ton/Ha</p>
+        </div>
+      </div>
+
+      <!-- HST PROGRESS -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-sm text-slate-800">🌱 Perkembangan Umur Tanaman (HST)</h3>
+          <button onclick="switchTab('lahan')" class="text-xs font-semibold text-sawah-700 hover:underline">Kelola Lahan →</button>
+        </div>
+        <div id="hstContainer" class="space-y-3"></div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <h3 class="font-bold text-sm text-slate-800 mb-3">Proporsi Kategori Biaya</h3>
+          <div class="h-56 relative"><canvas id="chartBiaya"></canvas></div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <h3 class="font-bold text-sm text-slate-800 mb-3">Modal vs Pendapatan per Lahan</h3>
+          <div class="h-56 relative"><canvas id="chartKeuangan"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: LAHAN -->
+    <section id="tab-lahan" class="tab-section hidden space-y-4 fade-in">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-extrabold text-slate-900">Data Lahan &amp; Musim Tanam</h2>
+          <p class="text-xs text-slate-500">Catat luas sawah/tegalan, varietas, dan tanggal tanam.</p>
+        </div>
+        <button onclick="openFormModal('lahan')" class="px-3.5 py-2 rounded-xl bg-sawah-700 hover:bg-sawah-800 text-white font-semibold text-xs shadow">+ Tambah Lahan</button>
+      </div>
+      <div id="listLahan" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </section>
+
+    <!-- TAB: PENGELUARAN -->
+    <section id="tab-pengeluaran" class="tab-section hidden space-y-4 fade-in">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-extrabold text-slate-900">Catatan Pengeluaran</h2>
+          <p class="text-xs text-slate-500">Benih, pupuk, pestisida, upah tenaga kerja, hingga irigasi.</p>
+        </div>
+        <button onclick="openFormModal('pengeluaran')" class="px-3.5 py-2 rounded-xl bg-sawah-700 hover:bg-sawah-800 text-white font-semibold text-xs shadow">+ Catat Biaya</button>
+      </div>
+      <div id="listPengeluaran" class="space-y-2.5"></div>
+    </section>
+
+    <!-- TAB: AKTIVITAS -->
+    <section id="tab-aktivitas" class="tab-section hidden space-y-4 fade-in">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-extrabold text-slate-900">Jurnal Aktivitas Lapangan</h2>
+          <p class="text-xs text-slate-500">Pemupukan, penyemprotan, pengairan, dan pengamatan hama.</p>
+        </div>
+        <button onclick="openFormModal('aktivitas')" class="px-3.5 py-2 rounded-xl bg-sawah-700 hover:bg-sawah-800 text-white font-semibold text-xs shadow">+ Catat Aktivitas</button>
+      </div>
+      <div id="listAktivitas" class="space-y-2.5"></div>
+    </section>
+
+    <!-- TAB: PANEN -->
+    <section id="tab-panen" class="tab-section hidden space-y-4 fade-in">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-extrabold text-slate-900">Catatan Hasil Panen</h2>
+          <p class="text-xs text-slate-500">Catat tonase, kadar air, harga jual, dan produktivitas Ton/Ha.</p>
+        </div>
+        <button onclick="openFormModal('panen')" class="px-3.5 py-2 rounded-xl bg-sawah-700 hover:bg-sawah-800 text-white font-semibold text-xs shadow">+ Catat Panen</button>
+      </div>
+      <div id="listPanen" class="space-y-2.5"></div>
+    </section>
+  </main>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 px-1 py-1.5 grid grid-cols-5 shadow-lg">
+    <button onclick="switchTab('dashboard')" data-tab="dashboard" class="mob-btn flex flex-col items-center py-1 text-sawah-700 font-bold text-[10px]"><span class="text-lg">📊</span>Ringkasan</button>
+    <button onclick="switchTab('lahan')" data-tab="lahan" class="mob-btn flex flex-col items-center py-1 text-slate-500 font-medium text-[10px]"><span class="text-lg">🗺️</span>Lahan</button>
+    <button onclick="switchTab('pengeluaran')" data-tab="pengeluaran" class="mob-btn flex flex-col items-center py-1 text-slate-500 font-medium text-[10px]"><span class="text-lg">💸</span>Biaya</button>
+    <button onclick="switchTab('aktivitas')" data-tab="aktivitas" class="mob-btn flex flex-col items-center py-1 text-slate-500 font-medium text-[10px]"><span class="text-lg">📝</span>Jurnal</button>
+    <button onclick="switchTab('panen')" data-tab="panen" class="mob-btn flex flex-col items-center py-1 text-slate-500 font-medium text-[10px]"><span class="text-lg">🌾</span>Panen</button>
+  </nav>
+
+  <!-- MODAL: FORM CRUD -->
+  <div id="formModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 id="formModalTitle" class="font-extrabold text-base text-slate-900">Form Data</h3>
+        <button onclick="closeModal('formModal')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold">✕</button>
+      </div>
+      <form id="dynamicForm" onsubmit="handleFormSubmit(event)" class="p-5 overflow-y-auto space-y-3.5 text-sm"></form>
+    </div>
+  </div>
+
+  <!-- MODAL: GOOGLE SHEETS CONNECTION -->
+  <div id="gasModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-extrabold text-base text-slate-900">🔗 Koneksi Database Google Sheets</h3>
+        <button onclick="closeModal('gasModal')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-sm">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">URL Web App Google Apps Script (berakhiran /exec)</label>
+          <input id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-sawah-500 outline-none" />
+          <p class="text-[11px] text-slate-500 mt-1">Pastikan Deploy Web App diatur: <b>Execute as: Me</b> dan <b>Who has access: Anyone</b>.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="saveAndConnectGas()" class="flex-1 px-4 py-2.5 rounded-xl bg-sawah-700 hover:bg-sawah-800 text-white font-bold text-xs shadow">Simpan &amp; Tarik Data</button>
+          <button onclick="pushLocalToGas()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow">Kirim Data Lokal ke Sheets</button>
+        </div>
+        <div id="gasConnectedActions" class="hidden pt-2 border-t border-slate-100 flex items-center justify-between">
+          <span class="text-xs text-sawah-700 font-semibold">✅ Terhubung ke Google Sheets</span>
+          <button onclick="disconnectGas()" class="text-xs font-bold text-rose-600 hover:underline">Putuskan Koneksi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SETTINGS & EXPORT -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-extrabold text-base text-slate-900">⚙️ Pengaturan &amp; Ekspor</h3>
+        <button onclick="closeModal('settingsModal')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold">✕</button>
+      </div>
+      <div class="p-5 space-y-3 text-sm">
+        <button onclick="exportAllCsv()" class="w-full py-2.5 px-4 rounded-xl bg-sawah-50 border border-sawah-200 text-sawah-800 font-bold text-xs flex items-center justify-between hover:bg-sawah-100">
+          <span>📥 Ekspor Semua Data ke CSV (Excel)</span><span>→</span>
+        </button>
+        <button onclick="resetSampleData()" class="w-full py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-between hover:bg-slate-100">
+          <span>🔄 Muat Ulang Data Contoh (Padi &amp; Jagung)</span><span>→</span>
+        </button>
+        <button onclick="clearAllLocalData()" class="w-full py-2.5 px-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs flex items-center justify-between hover:bg-rose-100">
+          <span>🗑️ Hapus Semua Data Lokal</span><span>→</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="hidden fixed top-16 right-4 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg"></div>
+
+  <script>
+    // ===================== PWA SERVICE WORKER & INSTALL =====================
+    let deferredPrompt = null;
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('btnInstallPwa');
+      btn.classList.remove('hidden');
+      btn.classList.add('flex');
+    });
+    async function installPwa() {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        document.getElementById('btnInstallPwa').classList.add('hidden');
+        showToast('Aplikasi TaniCatat sedang diinstal...');
+      }
+      deferredPrompt = null;
+    }
+
+    // ===================== STATE & SAMPLE DATA =====================
+    const STORAGE_KEY = 'tanicatat_data_v2';
+    const GAS_URL_KEY = 'tanicatat_gas_url';
+
+    function getSampleData() {
+      const today = new Date();
+      const fmt = (daysAgo) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - daysAgo);
+        return d.toISOString().split('T')[0];
+      };
+      return {
+        lahan: [
+          { id: 'LHN-001', nama_lahan: 'Sawah Blok Utara', komoditas: 'Padi', varietas: 'Inpari 32', luas_m2: 5000, luas_ha: 0.5, tanggal_tanam: fmt(52), estimasi_panen: fmt(-58), lokasi: 'Blok A', status: 'Aktif', catatan: 'Irigasi teknis lancar' },
+          { id: 'LHN-002', nama_lahan: 'Tegalan Selatan', komoditas: 'Jagung', varietas: 'NK Perkasa', luas_m2: 3500, luas_ha: 0.35, tanggal_tanam: fmt(75), estimasi_panen: fmt(-25), lokasi: 'Blok C', status: 'Aktif', catatan: 'Tadah hujan' }
+        ],
+        pengeluaran: [
+          { id: 'PGL-001', lahan_id: 'LHN-001', tanggal: fmt(50), kategori: 'Benih', deskripsi: 'Benih Padi Inpari 32', jumlah: 15, satuan: 'Kg', harga_satuan: 14000, total_biaya: 210000, catatan: 'Beli di kios tani' },
+          { id: 'PGL-002', lahan_id: 'LHN-001', tanggal: fmt(35), kategori: 'Pupuk', deskripsi: 'Urea & NPK Phonska', jumlah: 3, satuan: 'Karung', harga_satuan: 135000, total_biaya: 405000, catatan: 'Pemupukan susulan 1' },
+          { id: 'PGL-003', lahan_id: 'LHN-002', tanggal: fmt(72), kategori: 'Tenaga Kerja', deskripsi: 'Olah lahan & tanam jagung', jumlah: 4, satuan: 'HOK', harga_satuan: 90000, total_biaya: 360000, catatan: '' }
+        ],
+        aktivitas: [
+          { id: 'AKT-001', lahan_id: 'LHN-001', tanggal: fmt(35), hst: 17, jenis_aktivitas: 'Pemupukan', deskripsi: 'Pemupukan dasar Urea + NPK', petugas: 'Mandiri', status: 'Selesai', catatan: 'Kondisi daun hijau merata' },
+          { id: 'AKT-002', lahan_id: 'LHN-002', tanggal: fmt(20), hst: 55, jenis_aktivitas: 'Penyemprotan', deskripsi: 'Antisipasi ulat grayak', petugas: 'Mandiri', status: 'Selesai', catatan: '' }
+        ],
+        panen: [
+          { id: 'PNN-001', lahan_id: 'LHN-002', tanggal: fmt(2), jenis_hasil: 'Pipilan Kering', berat_kg: 2100, harga_per_kg: 5200, total_pendapatan: 10920000, kadar_air_persen: 15, pembeli: 'Tengkulak Desa', catatan: 'Panen tahap awal' }
+        ]
+      };
+    }
+
+    let state = { lahan: [], pengeluaran: [], aktivitas: [], panen: [] };
+    let filterKomoditas = 'Semua';
+    let currentModalType = null;
+    let currentEditId = null;
+    let chartBiayaInstance = null;
+    let chartKeuanganInstance = null;
+
+    function loadLocalState() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          state = JSON.parse(raw);
+          state.lahan = state.lahan || [];
+          state.pengeluaran = state.pengeluaran || [];
+          state.aktivitas = state.aktivitas || [];
+          state.panen = state.panen || [];
+          return;
+        } catch (e) {}
+      }
+      state = getSampleData();
+      saveLocalState();
+    }
+
+    function saveLocalState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    // ===================== GOOGLE APPS SCRIPT SYNC =====================
+    function getGasUrl() {
+      return (localStorage.getItem(GAS_URL_KEY) || '').trim();
+    }
+
+    function updateConnectionUI() {
+      const url = getGasUrl();
+      const dot = document.getElementById('statusDot');
+      const txt = document.getElementById('statusText');
+      const btn = document.getElementById('btnSyncStatus');
+      const banner = document.getElementById('localBanner');
+      const connActions = document.getElementById('gasConnectedActions');
+
+      if (url) {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        txt.textContent = 'Google Sheets';
+        btn.className = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-300/40 text-emerald-100 text-xs font-semibold hover:bg-white/15 transition';
+        banner.classList.add('hidden');
+        connActions.classList.remove('hidden');
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        txt.textContent = 'Mode Lokal';
+        btn.className = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-300/40 text-amber-100 text-xs font-semibold hover:bg-white/15 transition';
+        banner.classList.remove('hidden');
+        connActions.classList.add('hidden');
+      }
+    }
+
+    async function fetchFromGas(silent = false) {
+      const url = getGasUrl();
+      if (!url) return false;
+      try {
+        if (!silent) showToast('Menarik data dari Google Sheets...');
+        const sep = url.includes('?') ? '&' : '?';
+        const res = await fetch(`${url}${sep}action=getAll`);
+        const json = await res.json();
+        const d = json.data || json;
+        if (json.status === 'success' || json.success) {
+          state = {
+            lahan: d.lahan || d.Lahan || [],
+            pengeluaran: d.pengeluaran || d.Pengeluaran || [],
+            aktivitas: d.aktivitas || d.Aktivitas || [],
+            panen: d.panen || d.Panen || []
+          };
+          saveLocalState();
+          renderAll();
+          if (!silent) showToast('✅ Data tersinkronisasi dari Google Sheets');
+          return true;
+        }
+        throw new Error(json.message || 'Gagal membaca data');
+      } catch (err) {
+        if (!silent) showToast('⚠️ Gagal sinkron: ' + err.message);
+        return false;
+      }
+    }
+
+    async function postToGas(payload) {
+      const url = getGasUrl();
+      if (!url) return;
+      try {
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        showToast('⚠️ Tersimpan lokal, gagal kirim ke Sheets');
+      }
+    }
+
+    function openGasModal() {
+      document.getElementById('gasUrlInput').value = getGasUrl();
+      updateConnectionUI();
+      document.getElementById('gasModal').classList.remove('hidden');
+    }
+
+    async function saveAndConnectGas() {
+      const url = document.getElementById('gasUrlInput').value.trim();
+      if (!url || !url.startsWith('http')) {
+        showToast('Masukkan URL Web App yang valid');
+        return;
+      }
+      localStorage.setItem(GAS_URL_KEY, url);
+      updateConnectionUI();
+      const ok = await fetchFromGas(false);
+      if (ok) closeModal('gasModal');
+    }
+
+    async function pushLocalToGas() {
+      const url = document.getElementById('gasUrlInput').value.trim() || getGasUrl();
+      if (!url || !url.startsWith('http')) {
+        showToast('Masukkan URL Web App terlebih dahulu');
+        return;
+      }
+      localStorage.setItem(GAS_URL_KEY, url);
+      updateConnectionUI();
+      showToast('Mengirim data lokal ke Google Sheets...');
+      await postToGas({ action: 'syncAll', data: state });
+      showToast('✅ Data lokal berhasil dikirim ke Google Sheets');
+      closeModal('gasModal');
+    }
+
+    function disconnectGas() {
+      localStorage.removeItem(GAS_URL_KEY);
+      updateConnectionUI();
+      showToast('Koneksi diputus. Kembali ke Mode Lokal.');
+      closeModal('gasModal');
+    }
+
+    // ===================== HELPERS =====================
+    const rp = (n) => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+    const calcHst = (tglTanam, refDate = null) => {
+      if (!tglTanam) return 0;
+      const start = new Date(tglTanam);
+      const end = refDate ? new Date(refDate) : new Date();
+      return Math.max(0, Math.floor((end - start) / 86400000));
+    };
+    const getLahanById = (id) => state.lahan.find((l) => String(l.id) === String(id));
+    const genId = (prefix) => `${prefix}-${Date.now().toString().slice(-5)}`;
+
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function openSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    // ===================== NAVIGATION =====================
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-section').forEach((s) => s.classList.add('hidden'));
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach((b) => {
+        const active = b.dataset.tab === tabName;
+        b.className = active
+          ? 'nav-btn px-4 py-2.5 text-sm font-semibold border-b-2 border-white text-white'
+          : 'nav-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-sawah-100 hover:text-white';
+      });
+      document.querySelectorAll('.mob-btn').forEach((b) => {
+        const active = b.dataset.tab === tabName;
+        b.className = active
+          ? 'mob-btn flex flex-col items-center py-1 text-sawah-700 font-bold text-[10px]'
+          : 'mob-btn flex flex-col items-center py-1 text-slate-500 font-medium text-[10px]';
+      });
+      if (tabName === 'dashboard') renderDashboard();
+    }
+
+    function setFilterKomoditas(kom) {
+      filterKomoditas = kom;
+      document.querySelectorAll('.flt-kom').forEach((b) => {
+        b.className = 'flt-kom px-3 py-1.5 rounded-lg text-slate-600';
+      });
+      document.getElementById(`flt-${kom}`).className = 'flt-kom px-3 py-1.5 rounded-lg bg-sawah-700 text-white shadow-sm';
+      renderDashboard();
+    }
+
+    // ===================== RENDER DASHBOARD =====================
+    function populateLahanFilter() {
+      const sel = document.getElementById('filterLahanSelect');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="ALL">Semua Lahan</option>' +
+        state.lahan.map((l) => `<option value="${l.id}">${l.nama_lahan} (${l.komoditas})</option>`).join('');
+      if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+    }
+
+    function renderDashboard() {
+      populateLahanFilter();
+      const selectedLahan = document.getElementById('filterLahanSelect').value;
+
+      const filteredLahan = state.lahan.filter((l) => {
+        const okKom = filterKomoditas === 'Semua' || l.komoditas === filterKomoditas;
+        const okId = selectedLahan === 'ALL' || String(l.id) === String(selectedLahan);
+        return okKom && okId;
+      });
+      const validIds = new Set(filteredLahan.map((l) => String(l.id)));
+
+      const exp = state.pengeluaran.filter((p) => validIds.has(String(p.lahan_id)));
+      const harv = state.panen.filter((p) => validIds.has(String(p.lahan_id)));
+
+      const totalModal = exp.reduce((a, b) => a + (Number(b.total_biaya) || 0), 0);
+      const totalPendapatan = harv.reduce((a, b) => a + (Number(b.total_pendapatan) || 0), 0);
+      const laba = totalPendapatan - totalModal;
+      const roi = totalModal > 0 ? ((laba / totalModal) * 100).toFixed(1) : '0';
+      const totalKg = harv.reduce((a, b) => a + (Number(b.berat_kg) || 0), 0);
+      const totalHa = filteredLahan.reduce((a, b) => a + (Number(b.luas_ha) || (Number(b.luas_m2) || 0) / 10000), 0);
+      const tonPerHa = totalHa > 0 ? ((totalKg / 1000) / totalHa).toFixed(2) : '0.00';
+
+      document.getElementById('kpiModal').textContent = rp(totalModal);
+      document.getElementById('kpiModalSub').textContent = `${exp.length} transaksi`;
+      document.getElementById('kpiPendapatan').textContent = rp(totalPendapatan);
+      document.getElementById('kpiPendapatanSub').textContent = `${harv.length} kali panen`;
+      const labaEl = document.getElementById('kpiLaba');
+      labaEl.textContent = rp(laba);
+      labaEl.className = `text-lg sm:text-xl font-extrabold mt-1 ${laba >= 0 ? 'text-sawah-700' : 'text-rose-600'}`;
+      document.getElementById('kpiRoi').textContent = `ROI: ${roi}%`;
+      document.getElementById('kpiPanen').textContent = `${totalKg.toLocaleString('id-ID')} Kg`;
+      document.getElementById('kpiProduktivitas').textContent = `${tonPerHa} Ton/Ha`;
+
+      // HST Progress
+      const hstBox = document.getElementById('hstContainer');
+      if (filteredLahan.length === 0) {
+        hstBox.innerHTML = '<p class="text-xs text-slate-400">Belum ada data lahan pada filter ini.</p>';
+      } else {
+        hstBox.innerHTML = filteredLahan.map((l) => {
+          const targetDays = l.komoditas === 'Jagung' ? 100 : 110;
+          const hst = calcHst(l.tanggal_tanam);
+          const pct = Math.min(100, Math.round((hst / targetDays) * 100));
+          const isJagung = l.komoditas === 'Jagung';
+          return `
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="flex justify-between items-center text-xs mb-1.5">
+                <span class="font-bold text-slate-800">${isJagung ? '🌽' : '🌾'} ${l.nama_lahan} <span class="font-normal text-slate-500">(${l.varietas || l.komoditas})</span></span>
+                <span class="font-extrabold ${isJagung ? 'text-amber-700' : 'text-sawah-700'}">${hst} HST / ${targetDays} hr</span>
+              </div>
+              <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                <div class="h-full rounded-full ${isJagung ? 'bg-amber-500' : 'bg-sawah-600'}" style="width:${pct}%"></div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      // Chart 1: Proporsi Biaya
+      const catMap = {};
+      exp.forEach((p) => {
+        const k = p.kategori || 'Lainnya';
+        catMap[k] = (catMap[k] || 0) + (Number(p.total_biaya) || 0);
+      });
+      if (chartBiayaInstance) chartBiayaInstance.destroy();
+      chartBiayaInstance = new Chart(document.getElementById('chartBiaya'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(catMap).length ? Object.keys(catMap) : ['Belum ada data'],
+          datasets: [{
+            data: Object.keys(catMap).length ? Object.values(catMap) : [1],
+            backgroundColor: ['#15803d', '#eab308', '#0ea5e9', '#f97316', '#8b5cf6', '#ef4444', '#64748b']
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } }
+      });
+
+      // Chart 2: Modal vs Pendapatan per Lahan
+      const labels = filteredLahan.map((l) => l.nama_lahan);
+      const modalData = filteredLahan.map((l) => exp.filter((p) => String(p.lahan_id) === String(l.id)).reduce((a, b) => a + (Number(b.total_biaya) || 0), 0));
+      const revData = filteredLahan.map((l) => harv.filter((p) => String(p.lahan_id) === String(l.id)).reduce((a, b) => a + (Number(b.total_pendapatan) || 0), 0));
+      if (chartKeuanganInstance) chartKeuanganInstance.destroy();
+      chartKeuanganInstance = new Chart(document.getElementById('chartKeuangan'), {
+        type: 'bar',
+        data: {
+          labels: labels.length ? labels : ['Belum ada lahan'],
+          datasets: [
+            { label: 'Modal', data: modalData.length ? modalData : [0], backgroundColor: '#f43f5e', borderRadius: 6 },
+            { label: 'Pendapatan', data: revData.length ? revData : [0], backgroundColor: '#16a34a', borderRadius: 6 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } }
+      });
+    }
+
+    // ===================== RENDER LISTS =====================
+    function renderLists() {
+      // Lahan
+      const lBox = document.getElementById('listLahan');
+      lBox.innerHTML = state.lahan.length === 0
+        ? '<p class="text-xs text-slate-400 col-span-2 text-center py-8 bg-white rounded-2xl border">Belum ada data lahan.</p>'
+        : state.lahan.map((l) => `
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
+            <div class="flex justify-between items-start gap-2">
+              <div>
+                <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold ${l.komoditas === 'Jagung' ? 'bg-amber-100 text-amber-800' : 'bg-sawah-100 text-sawah-800'}">${l.komoditas === 'Jagung' ? '🌽 Jagung' : '🌾 Padi'}</span>
+                <h3 class="font-extrabold text-sm text-slate-900 mt-1">${l.nama_lahan}</h3>
+                <p class="text-xs text-slate-500">Varietas: ${l.varietas || '-'} • ${Number(l.luas_m2 || 0).toLocaleString('id-ID')} m² (${Number(l.luas_ha || 0).toFixed(2)} Ha)</p>
+              </div>
+              <div class="flex gap-1">
+                <button onclick="openFormModal('lahan','${l.id}')" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs">✏️</button>
+                <button onclick="deleteRecord('lahan','${l.id}')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs">🗑️</button>
+              </div>
+            </div>
+            <div class="flex justify-between text-[11px] text-slate-600 pt-2 border-t border-slate-100">
+              <span>Tanam: <b>${l.tanggal_tanam || '-'}</b></span>
+              <span class="font-bold text-sawah-700">${calcHst(l.tanggal_tanam)} HST</span>
+            </div>
+          </div>`).join('');
+
+      // Pengeluaran
+      const pBox = document.getElementById('listPengeluaran');
+      pBox.innerHTML = state.pengeluaran.length === 0
+        ? '<p class="text-xs text-slate-400 text-center py-8 bg-white rounded-2xl border">Belum ada catatan pengeluaran.</p>'
+        : state.pengeluaran.slice().reverse().map((p) => {
+          const lahan = getLahanById(p.lahan_id);
+          return `
+            <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold">${p.kategori}</span>
+                  <span class="text-[11px] text-slate-400">${p.tanggal} • ${lahan ? lahan.nama_lahan : p.lahan_id}</span>
+                </div>
+                <p class="font-bold text-sm text-slate-900 truncate mt-0.5">${p.deskripsi}</p>
+                <p class="text-[11px] text-slate-500">${p.jumlah} ${p.satuan} × ${rp(p.harga_satuan)}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="font-extrabold text-sm text-rose-600">${rp(p.total_biaya)}</p>
+                <div class="flex justify-end gap-1 mt-1">
+                  <button onclick="openFormModal('pengeluaran','${p.id}')" class="px-2 py-0.5 rounded bg-slate-100 text-[11px]">✏️</button>
+                  <button onclick="deleteRecord('pengeluaran','${p.id}')" class="px-2 py-0.5 rounded bg-rose-50 text-rose-600 text-[11px]">🗑️</button>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+
+      // Aktivitas
+      const aBox = document.getElementById('listAktivitas');
+      aBox.innerHTML = state.aktivitas.length === 0
+        ? '<p class="text-xs text-slate-400 text-center py-8 bg-white rounded-2xl border">Belum ada jurnal aktivitas.</p>'
+        : state.aktivitas.slice().reverse().map((a) => {
+          const lahan = getLahanById(a.lahan_id);
+          return `
+            <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm flex items-start justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold">${a.jenis_aktivitas}</span>
+                  <span class="px-2 py-0.5 rounded-md bg-sawah-50 text-sawah-700 text-[10px] font-bold">${a.hst || 0} HST</span>
+                  <span class="text-[11px] text-slate-400">${a.tanggal} • ${lahan ? lahan.nama_lahan : a.lahan_id}</span>
+                </div>
+                <p class="font-bold text-sm text-slate-900 mt-1">${a.deskripsi}</p>
+                <p class="text-[11px] text-slate-500">Petugas: ${a.petugas || '-'} • Status: ${a.status || 'Selesai'}</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button onclick="openFormModal('aktivitas','${a.id}')" class="px-2 py-1 rounded bg-slate-100 text-xs">✏️</button>
+                <button onclick="deleteRecord('aktivitas','${a.id}')" class="px-2 py-1 rounded bg-rose-50 text-rose-600 text-xs">🗑️</button>
+              </div>
+            </div>`;
+        }).join('');
+
+      // Panen
+      const hBox = document.getElementById('listPanen');
+      hBox.innerHTML = state.panen.length === 0
+        ? '<p class="text-xs text-slate-400 text-center py-8 bg-white rounded-2xl border">Belum ada catatan panen.</p>'
+        : state.panen.slice().reverse().map((h) => {
+          const lahan = getLahanById(h.lahan_id);
+          const ha = lahan ? (Number(lahan.luas_ha) || (Number(lahan.luas_m2) || 0) / 10000) : 0;
+          const prod = ha > 0 ? ((Number(h.berat_kg || 0) / 1000) / ha).toFixed(2) : '-';
+          return `
+            <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold">${h.jenis_hasil}</span>
+                  <span class="text-[11px] text-slate-400">${h.tanggal} • ${lahan ? lahan.nama_lahan : h.lahan_id}</span>
+                </div>
+                <p class="font-bold text-sm text-slate-900 mt-0.5">${Number(h.berat_kg || 0).toLocaleString('id-ID')} Kg × ${rp(h.harga_per_kg)}</p>
+                <p class="text-[11px] text-slate-500">Produktivitas: <b>${prod} Ton/Ha</b> • Kadar air: ${h.kadar_air_persen || '-'}%</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="font-extrabold text-sm text-sawah-700">${rp(h.total_pendapatan)}</p>
+                <div class="flex justify-end gap-1 mt-1">
+                  <button onclick="openFormModal('panen','${h.id}')" class="px-2 py-0.5 rounded bg-slate-100 text-[11px]">✏️</button>
+                  <button onclick="deleteRecord('panen','${h.id}')" class="px-2 py-0.5 rounded bg-rose-50 text-rose-600 text-[11px]">🗑️</button>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderAll() {
+      renderDashboard();
+      renderLists();
+    }
+
+    // ===================== DYNAMIC CRUD MODAL =====================
+    function openFormModal(type, editId = null) {
+      if (type !== 'lahan' && state.lahan.length === 0) {
+        showToast('Tambahkan data Lahan terlebih dahulu!');
+        switchTab('lahan');
+        return;
+      }
+      currentModalType = type;
+      currentEditId = editId;
+      const item = editId ? state[type].find((x) => String(x.id) === String(editId)) : {};
+      const titles = { lahan: 'Data Lahan', pengeluaran: 'Catatan Pengeluaran', aktivitas: 'Jurnal Aktivitas', panen: 'Catatan Hasil Panen' };
+      document.getElementById('formModalTitle').textContent = (editId ? 'Edit ' : 'Tambah ') + titles[type];
+
+      const today = new Date().toISOString().split('T')[0];
+      const lahanOpts = state.lahan.map((l) => `<option value="${l.id}" ${item.lahan_id === l.id ? 'selected' : ''}>${l.nama_lahan} (${l.komoditas})</option>`).join('');
+      const inp = 'w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-sawah-500 outline-none';
+      const lbl = 'block text-[11px] font-bold text-slate-600 mb-1';
+
+      let html = '';
+      if (type === 'lahan') {
+        html = `
+          <div><label class="${lbl}">Nama Lahan *</label><input name="nama_lahan" required value="${item.nama_lahan || ''}" placeholder="Contoh: Sawah Blok Utara" class="${inp}"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Komoditas *</label><select name="komoditas" class="${inp}"><option ${item.komoditas==='Padi'?'selected':''}>Padi</option><option ${item.komoditas==='Jagung'?'selected':''}>Jagung</option></select></div>
+            <div><label class="${lbl}">Varietas</label><input name="varietas" value="${item.varietas || ''}" placeholder="Inpari 32 / NK Perkasa" class="${inp}"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Luas (m²) *</label><input name="luas_m2" type="number" required value="${item.luas_m2 || ''}" oninput="document.querySelector('[name=luas_ha]').value=(this.value/10000).toFixed(4)" class="${inp}"></div>
+            <div><label class="${lbl}">Luas (Ha)</label><input name="luas_ha" type="number" step="0.0001" readonly value="${item.luas_ha || ''}" class="${inp} bg-slate-50"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Tanggal Tanam *</label><input name="tanggal_tanam" type="date" required value="${item.tanggal_tanam || today}" class="${inp}"></div>
+            <div><label class="${lbl}">Estimasi Panen</label><input name="estimasi_panen" type="date" value="${item.estimasi_panen || ''}" class="${inp}"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Lokasi</label><input name="lokasi" value="${item.lokasi || ''}" class="${inp}"></div>
+            <div><label class="${lbl}">Status</label><select name="status" class="${inp}"><option ${item.status==='Aktif'?'selected':''}>Aktif</option><option ${item.status==='Panen'?'selected':''}>Panen</option><option ${item.status==='Selesai'?'selected':''}>Selesai</option></select></div>
+          </div>
+          <div><label class="${lbl}">Catatan</label><textarea name="catatan" rows="2" class="${inp}">${item.catatan || ''}</textarea></div>`;
+      } else if (type === 'pengeluaran') {
+        const cats = ['Benih', 'Pupuk', 'Pestisida', 'Tenaga Kerja', 'Olah Lahan', 'Irigasi', 'Lainnya'];
+        html = `
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Lahan *</label><select name="lahan_id" class="${inp}">${lahanOpts}</select></div>
+            <div><label class="${lbl}">Tanggal *</label><input name="tanggal" type="date" required value="${item.tanggal || today}" class="${inp}"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Kategori *</label><select name="kategori" class="${inp}">${cats.map(c=>`<option ${item.kategori===c?'selected':''}>${c}</option>`).join('')}</select></div>
+            <div><label class="${lbl}">Satuan</label><input name="satuan" value="${item.satuan || 'Kg'}" placeholder="Kg / Karung / HOK" class="${inp}"></div>
+          </div>
+          <div><label class="${lbl}">Deskripsi *</label><input name="deskripsi" required value="${item.deskripsi || ''}" placeholder="Contoh: Beli Pupuk Urea" class="${inp}"></div>
+          <div class="grid grid-cols-3 gap-2">
+            <div><label class="${lbl}">Jumlah *</label><input name="jumlah" type="number" step="0.01" required value="${item.jumlah || 1}" oninput="calcFormTotal('jumlah','harga_satuan','total_biaya')" class="${inp}"></div>
+            <div><label class="${lbl}">Harga Satuan *</label><input name="harga_satuan" type="number" required value="${item.harga_satuan || 0}" oninput="calcFormTotal('jumlah','harga_satuan','total_biaya')" class="${inp}"></div>
+            <div><label class="${lbl}">Total Biaya</label><input name="total_biaya" type="number" readonly value="${item.total_biaya || 0}" class="${inp} bg-slate-50 font-bold"></div>
+          </div>
+          <div><label class="${lbl}">Catatan</label><input name="catatan" value="${item.catatan || ''}" class="${inp}"></div>`;
+      } else if (type === 'aktivitas') {
+        const acts = ['Olah Lahan', 'Tanam', 'Pemupukan', 'Penyemprotan', 'Penyiangan', 'Pengairan', 'Pengamatan Hama', 'Lainnya'];
+        html = `
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Lahan *</label><select name="lahan_id" class="${inp}">${lahanOpts}</select></div>
+            <div><label class="${lbl}">Tanggal *</label><input name="tanggal" type="date" required value="${item.tanggal || today}" class="${inp}"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Jenis Aktivitas</label><select name="jenis_aktivitas" class="${inp}">${acts.map(a=>`<option ${item.jenis_aktivitas===a?'selected':''}>${a}</option>`).join('')}</select></div>
+            <div><label class="${lbl}">Petugas</label><input name="petugas" value="${item.petugas || 'Mandiri'}" class="${inp}"></div>
+          </div>
+          <div><label class="${lbl}">Deskripsi Pekerjaan *</label><textarea name="deskripsi" required rows="2" class="${inp}">${item.deskripsi || ''}</textarea></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Status</label><select name="status" class="${inp}"><option ${item.status==='Selesai'?'selected':''}>Selesai</option><option ${item.status==='Terjadwal'?'selected':''}>Terjadwal</option></select></div>
+            <div><label class="${lbl}">Catatan</label><input name="catatan" value="${item.catatan || ''}" class="${inp}"></div>
+          </div>`;
+      } else if (type === 'panen') {
+        html = `
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Lahan *</label><select name="lahan_id" onchange="updateJenisHasilOpts(this.value)" class="${inp}">${lahanOpts}</select></div>
+            <div><label class="${lbl}">Tanggal Panen *</label><input name="tanggal" type="date" required value="${item.tanggal || today}" class="${inp}"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Jenis Hasil</label><select id="jenisHasilSel" name="jenis_hasil" class="${inp}"></select></div>
+            <div><label class="${lbl}">Kadar Air (%)</label><input name="kadar_air_persen" type="number" step="0.1" value="${item.kadar_air_persen || ''}" placeholder="14" class="${inp}"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div><label class="${lbl}">Berat (Kg) *</label><input name="berat_kg" type="number" step="0.1" required value="${item.berat_kg || ''}" oninput="calcFormTotal('berat_kg','harga_per_kg','total_pendapatan')" class="${inp}"></div>
+            <div><label class="${lbl}">Harga/Kg *</label><input name="harga_per_kg" type="number" required value="${item.harga_per_kg || ''}" oninput="calcFormTotal('berat_kg','harga_per_kg','total_pendapatan')" class="${inp}"></div>
+            <div><label class="${lbl}">Pendapatan</label><input name="total_pendapatan" type="number" readonly value="${item.total_pendapatan || 0}" class="${inp} bg-slate-50 font-bold"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="${lbl}">Pembeli</label><input name="pembeli" value="${item.pembeli || ''}" class="${inp}"></div>
+            <div><label class="${lbl}">Catatan</label><input name="catatan" value="${item.catatan || ''}" class="${inp}"></div>
+          </div>`;
+      }
+
+      html += `<div class="pt-2 flex gap-2">
+        <button type="button" onclick="closeModal('formModal')" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs">Batal</button>
+        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-sawah-700 hover:bg-sawah-800 text-white font-bold text-xs shadow">Simpan</button>
+      </div>`;
+
+      document.getElementById('dynamicForm').innerHTML = html;
+      if (type === 'panen') {
+        const firstLahanId = item.lahan_id || state.lahan[0].id;
+        updateJenisHasilOpts(firstLahanId, item.jenis_hasil);
+      }
+      document.getElementById('formModal').classList.remove('hidden');
+    }
+
+    function updateJenisHasilOpts(lahanId, selectedVal = '') {
+      const lahan = getLahanById(lahanId);
+      const opts = (lahan && lahan.komoditas === 'Jagung')
+        ? ['Pipilan Kering', 'Tongkol Basah', 'Jagung Manis']
+        : ['GKP (Gabah Kering Panen)', 'GKG (Gabah Kering Giling)', 'Beras'];
+      document.getElementById('jenisHasilSel').innerHTML = opts.map((o) => `<option ${o === selectedVal ? 'selected' : ''}>${o}</option>`).join('');
+    }
+
+    function calcFormTotal(f1, f2, target) {
+      const v1 = Number(document.querySelector(`[name=${f1}]`).value) || 0;
+      const v2 = Number(document.querySelector(`[name=${f2}]`).value) || 0;
+      document.querySelector(`[name=${target}]`).value = Math.round(v1 * v2);
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const rec = Object.fromEntries(fd.entries());
+      const type = currentModalType;
+      const sheetMap = { lahan: 'Lahan', pengeluaran: 'Pengeluaran', aktivitas: 'Aktivitas', panen: 'Panen' };
+      const prefixMap = { lahan: 'LHN', pengeluaran: 'PGL', aktivitas: 'AKT', panen: 'PNN' };
+
+      if (type === 'lahan') {
+        rec.luas_m2 = Number(rec.luas_m2) || 0;
+        rec.luas_ha = Number((rec.luas_m2 / 10000).toFixed(4));
+      } else if (type === 'pengeluaran') {
+        rec.jumlah = Number(rec.jumlah) || 0;
+        rec.harga_satuan = Number(rec.harga_satuan) || 0;
+        rec.total_biaya = Math.round(rec.jumlah * rec.harga_satuan);
+      } else if (type === 'aktivitas') {
+        const lahan = getLahanById(rec.lahan_id);
+        rec.hst = lahan ? calcHst(lahan.tanggal_tanam, rec.tanggal) : 0;
+      } else if (type === 'panen') {
+        rec.berat_kg = Number(rec.berat_kg) || 0;
+        rec.harga_per_kg = Number(rec.harga_per_kg) || 0;
+        rec.total_pendapatan = Math.round(rec.berat_kg * rec.harga_per_kg);
+      }
+
+      if (currentEditId) {
+        rec.id = currentEditId;
+        const idx = state[type].findIndex((x) => String(x.id) === String(currentEditId));
+        if (idx > -1) state[type][idx] = rec;
+        saveLocalState();
+        renderAll();
+        closeModal('formModal');
+        showToast('✅ Data diperbarui');
+        await postToGas({ action: 'update', sheet: sheetMap[type], id: rec.id, data: rec });
+      } else {
+        rec.id = genId(prefixMap[type]);
+        state[type].push(rec);
+        saveLocalState();
+        renderAll();
+        closeModal('formModal');
+        showToast('✅ Data ditambahkan');
+        await postToGas({ action: 'create', sheet: sheetMap[type], data: rec });
+      }
+    }
+
+    async function deleteRecord(type, id) {
+      if (!confirm('Hapus data ini?')) return;
+      const sheetMap = { lahan: 'Lahan', pengeluaran: 'Pengeluaran', aktivitas: 'Aktivitas', panen: 'Panen' };
+      state[type] = state[type].filter((x) => String(x.id) !== String(id));
+      saveLocalState();
+      renderAll();
+      showToast('🗑️ Data dihapus');
+      await postToGas({ action: 'delete', sheet: sheetMap[type], id });
+    }
+
+    // ===================== EXPORT & SETTINGS =====================
+    function exportAllCsv() {
+      let csv = '';
+      ['lahan', 'pengeluaran', 'aktivitas', 'panen'].forEach((k) => {
+        csv += `=== ${k.toUpperCase()} ===\n`;
+        if (state[k].length) {
+          const keys = Object.keys(state[k][0]);
+          csv += keys.join(',') + '\n';
+          state[k].forEach((row) => {
+            csv += keys.map((col) => `"${String(row[col] ?? '').replace(/"/g, '""')}"`).join(',') + '\n';
+          });
+        }
+        csv += '\n';
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `tanicatat-export-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      closeModal('settingsModal');
+      showToast('📥 File CSV diunduh');
+    }
+
+    function resetSampleData() {
+      if (!confirm('Muat ulang data contoh? Data lokal saat ini akan diganti.')) return;
+      state = getSampleData();
+      saveLocalState();
+      renderAll();
+      closeModal('settingsModal');
+      showToast('🔄 Data contoh dimuat ulang');
+    }
+
+    function clearAllLocalData() {
+      if (!confirm('Hapus semua data lokal di browser ini?')) return;
+      state = { lahan: [], pengeluaran: [], aktivitas: [], panen: [] };
+      saveLocalState();
+      renderAll();
+      closeModal('settingsModal');
+      showToast('🗑️ Semua data lokal dihapus');
+    }
+
+    // ===================== INIT =====================
+    loadLocalState();
+    updateConnectionUI();
+    renderAll();
+    if (getGasUrl()) fetchFromGas(true);
+  </script>
+</body>
+</html>
